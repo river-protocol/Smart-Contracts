@@ -18,7 +18,9 @@ Yes No Delegate
 
 if Delegate > Select the delegate, if No > reject proposal
 
-## If Yes > Start working on the project
+---
+
+If Yes > Start working on the project
 
 .
 .
