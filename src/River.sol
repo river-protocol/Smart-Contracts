@@ -1,5 +1,7 @@
 //SPDX-License-Identifier:MIT
-pragma solidity 0.8.23;
+pragma solidity 0.8.26;
+
+import "@openzeppelin/contracts/access/Ownable.sol";
 
 contract River is Ownable{
     struct Proposal {
@@ -12,6 +14,11 @@ contract River is Ownable{
         bytes32 milestoneId;
         uint256 amount;
         bool isCompleted;
+    }
+
+    constructor() Ownable(msg.sender)
+    {
+
     }
     //register schema
     //create attestation
