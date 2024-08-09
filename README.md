@@ -1,66 +1,43 @@
-## Foundry
+Proposer creates a proposal
+.
+. with gratn proposal schema and attest with EAS
+.
+.
+V
+Submit
+.
+.
+V
+Voting begins on frontend and with framecaster on socials
 
-**Foundry is a blazing fast, portable and modular toolkit for Ethereum application development written in Rust.**
+---
 
-Foundry consists of:
+Proposal 1
 
--   **Forge**: Ethereum testing framework (like Truffle, Hardhat and DappTools).
--   **Cast**: Swiss army knife for interacting with EVM smart contracts, sending transactions and getting chain data.
--   **Anvil**: Local Ethereum node, akin to Ganache, Hardhat Network.
--   **Chisel**: Fast, utilitarian, and verbose solidity REPL.
+Yes No Delegate
 
-## Documentation
+if Delegate > Select the delegate, if No > reject proposal
 
-https://book.getfoundry.sh/
+## If Yes > Start working on the project
 
-## Usage
+.
+.
+V
+First milestone submit to EAS & frontedn.
 
-### Build
+1. check if the grantee has delegates votes
+2. Schema: proposal id, milestoneid, amount,iscompleted, milstone description links
+   .
+   .
+   V
+   Resolver: if iscompleted,start streaming
+   if audit fails, revoke.
 
-```shell
-$ forge build
-```
+Design Decisions:
+Framecaster to be shared on socials, so that CTA is on socials directly which can help boost the voting ratio, which is a huge challenge for DAOs.
 
-### Test
+Token Streaming instead of locked for a year, since not all projects can be bootstrapped for a year, but a quarter is possible.
 
-```shell
-$ forge test
-```
+Mandatory Voting delegation of the grantee's votes to make it decentralized and unbiased voting on their projects.
 
-### Format
-
-```shell
-$ forge fmt
-```
-
-### Gas Snapshots
-
-```shell
-$ forge snapshot
-```
-
-### Anvil
-
-```shell
-$ anvil
-```
-
-### Deploy
-
-```shell
-$ forge script script/Counter.s.sol:CounterScript --rpc-url <your_rpc_url> --private-key <your_private_key>
-```
-
-### Cast
-
-```shell
-$ cast <subcommand>
-```
-
-### Help
-
-```shell
-$ forge --help
-$ anvil --help
-$ cast --help
-```
+EAS resolver to stop streaming when the project has less than 45% of the votes at any point in time.This helps the projects stay on track to complete the project on time while keeping the community informed of the progress.
