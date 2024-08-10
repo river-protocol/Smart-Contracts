@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: MIT
-
-pragma solidity 0.8.26;
+/*
+pragma solidity 0.8.23;
 
 import { Address } from "@openzeppelin/contracts/utils/Address.sol";
 import { SchemaResolver } from "@eas/contracts/resolver/SchemaResolver.sol";
@@ -42,4 +42,4 @@ contract PayingResolver is SchemaResolver {
 
         return true;
     }
-}
+} */
