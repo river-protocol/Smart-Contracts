@@ -4,72 +4,136 @@ pragma solidity 0.8.23;
 import "@openzeppelin/contracts/access/Ownable.sol";
 
 contract River is Ownable{
+    enum ProposalStatus {
+        Created,
+        Approved,
+        Milestone,
+        Revoked,
+        Completed
+    }
     struct Proposal {
         address proposer;
+        uint256 id;
         string description;
-        bool isApproved;
-        uint256 totalAmountGranted;
+        uint256 yesVotes;
+        uint256 noVotes;
+        ProposalStatus status;
         uint256 currentMilestone;
-        bool completed;
+        uint256 totalAmountGranted;
         string coverImage;
+        mapping(address => Vote) votes;
+    }
+    struct Vote {
+        bool hasVoted;
+        bool support;
+        uint256 weight;
     }
     
-   
+    uint256 public proposalCount;
     uint256 public constant VOTING_PERIOD = 1 weeks;
-    uint256 public constant APPROVAL_PERCENT =45;
-    mapping(address => address[]) private delegations;
-    mapping(bytes32 => Proposal) public proposals;
+    uint256 public constant VOTE_COOLDOWN_PERIOD = 2 weeks;
+    uint256 public constant APPROVAL_PERCENT = 65;
+    uint256 public constant MIN_VOTES = 500;
+    uint256 public constant FUNDING_THRESHOLD = 40;
+
+    mapping(uint256 => Proposal) public proposals;
+    mapping(address => address) public delegations;
     mapping(address => address) public delegatees;
-
-    event ProposalCreated(bytes32 indexed proposalHash,address proposer,_projectName);
-
 
     constructor() Ownable(msg.sender)
     {
 
     }
-    function CreateProposal(string memory _description,uint256 _amountRequested, string memory coverimage) external{
-        bytes32 proposalId = keccak256(abi.encodePacked(_projectName,msg.sender, block.timestamp));
-        proposals[proposalId] = Proposal({
-            address: msg.sender;
+    function createProposal(string memory _description, string memory coverimage) external{
+        id = proposalCount++;
+        proposals[id] = Proposal({
+            proposer: msg.sender,
             description: _description,
-            amountRequested: _amountRequested,
-            submittedTime: block.timestamp,
-            proposalHash: proposalId,
-            isApproved: false,
-            currentMilestone:0.
-            totalAmountGranted: 0,
             yesVotes: 0,
             noVotes: 0,
+            status: ProposalStatus.Created,
+            currentMilestone: 0,
+            totalAmountGranted: 0,
             coverImage: coverimage
         }); 
-        emit ProposalCreated(proposalId,msg.sender,_projectName);
-    
+       // emit ProposalCreated(proposalCount,msg.sender,_description);
     }
-    function vote(bytes32 _proposalId, bool _inFavor) external {
-        Proposal storage proposal = proposals[_proposalId];
-        require(block.timestamp <= proposal.submittedTime +VOTING_PERIOD ,"voting period is over");
+    function vote(uint256 id, bool _inFavor) external {
+        require(id <= proposalCount && id > 0,"Invalid proposal Id");
+        Proposal storage proposal = proposals[id];
+        require(proposal.status != ProposalStatus.Completed, "Voting has ended");
         
-        address voter = delegations[msg.sender] != address(0) ? delegations[msg.sender] : msg.sender;
-   if(_inFavor){
-    proposal.yesVotes++;
-   }
-   else{
-    proposal.noVotes++;
-   }
-    proposal.isApproved = (proposal.forVotes / (proposal.forVotes + proposal.againstVotes)) *100 > 45;
-        proposals[_proposalId] = proposal;
+        if(_inFavor){
+             proposal.yesVotes++;
+            }
+        else{
+         proposal.noVotes++;
+            }
+    }
+    function updatestatus(uint256 id) public {
+        Proposal storage proposal = proposals[id];
+        uint256 totalVotes = proposal.yesVotes + proposal.noVotes;
+        
+        if(totalVotes >= MIN_VOTES) {
+            uint256 yesPercentage = (proposal.yesVotes * 100) /totalVotes;
+            if(ProposalStatus.Created)
+            {
+                if (yesPercentage >= APPROVAL_PERCENT && proposal.status == ProposalStatus.Created)
+                {
+                proposal.status = ProposalStatus.Approved;
+                }
+                else 
+                {
+                proposal.status = ProposalStatus.Revoked;
+                }
+            }
 
-   if (block.timestamp >= proposal.submittedTime + VOTINGPERIOD)
-   {
-    finalize(_proposalId);
-   }
+            else if (proposal.status == ProposalStatus.Approved || proposal.status == ProposalStatus.Milestoned)
+            {
+                if(yesPercentage > FUNDING_THRESHOLD)
+                {
+                proposal.status = ProposalStatus.MileStoned;
+                }
+                else
+                {
+                proposal.status = ProposalStatus.Revoked;
+                }
+            }
+
+
+        }
+        proposal.lastVoteCheck = block.timestamp;
+
     }
 
+    function submitMilestone(uint256 id, string memory proposalhash) external {
+        Proposal storage proposal = proposals[id];
+        require(msg.sender == proposal.proposer, "only proposer can submit");
+        require(proposal.status ==ProposalStatus.Approved || ProposalStatus.MileStoned,"Proposal not in correct status");
+        require(proposal.currentMileStone < 5, "All milestones completed");
+        proposal.currentMileStone++;
+        if (proposal.status == ProposalStatus.Approved) {
+            //do i implement eas
+            proposal.status = ProposalStatus.Milestoned;
+        }
+        else if (proposal.currentMilestone == 5) {
+            proposal.status = ProjectStatus.Completed;
+        }
+        //emit event with proposal hash for frontend
 
-    function delegate(address _to) external {
+
+    }
+
+     
+    function checkUpKeep()
+    function performUpKeep()
+
+
+     /*function delegate(address _to) external {
         require(_to != msg.sender, "you cannot delegate to yourselves");
-    }
+        if(delegations[msg.sender] != address(0)) {
+        }
+    } */
 
 
 
