@@ -19,7 +19,7 @@ contract River is Ownable{
         uint256 noVotes;
         ProposalStatus status;
         uint256 currentMilestone;
-        uint256 totalAmountGranted;
+        uint256 totalAmountGranted;// need to write logic for this
         string coverImage;
         uint256 lastVoteCheck;
         mapping(address => Vote) votes;
@@ -71,11 +71,11 @@ contract River is Ownable{
     function delegate(address _to) external
     {
     require(_to != msg.sender, "Cannot delegate to self");
-    require(delegations[msg.sender] != _to, "Already delegated to this address");
+    require(delegations[msg.sender] != _to, "you have already delegated to this address");
 
     address current = _to;
     while (delegations[current] != address(0)) {
-    require(delegations[current] != msg.sender, "Found loop in delegation");
+    require(delegations[current] != msg.sender, "Found a loop in delegation");
     current = delegations[current];
     }
 
@@ -195,13 +195,5 @@ contract River is Ownable{
     function getProposalStatus(uint256 id) public view returns (ProposalStatus) {
     return proposals[id].status;
     }
-
-    
-
-
-     
-    
-
-
 
 }
