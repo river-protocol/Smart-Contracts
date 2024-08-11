@@ -9,21 +9,37 @@ contract River is Ownable{
         Approved,
         Milestoned,
         Revoked,
-        Completed
+        Completed,
+        Settled
     }
     struct Proposal {
         address proposer;
         uint256 id;
         string description;
+        uint256 amountRequested;
         uint256 yesVotes;
         uint256 noVotes;
         ProposalStatus status;
         uint256 currentMilestone;
-        uint256 totalAmountGranted;// need to write logic for this
+        uint256 totalAmountGranted;
         string coverImage;
         uint256 lastVoteCheck;
         mapping(address => Vote) votes;
     }
+     struct ProposalView {
+        address proposer;
+        uint256 id;
+        string description;
+        uint256 amountRequested;
+        uint256 yesVotes;
+        uint256 noVotes;
+        ProposalStatus status;
+        uint256 currentMilestone;
+        uint256 totalAmountGranted;
+        string coverImage;
+        uint256 lastVoteCheck;
+    }
+
     struct Vote {
         bool hasVoted;
         bool support;
@@ -37,10 +53,24 @@ contract River is Ownable{
     uint256 public constant APPROVAL_PERCENT = 65;
     uint256 public constant MIN_VOTES = 500;
     uint256 public constant FUNDING_THRESHOLD = 40;
+    address public constant L1_CROSS_DOMAIN_MESSENGER_PROXY = 0xfDbc7c5af17a71A7F89c333339E139f8a92E99CF;
+
+    modifier validDelegate(address _to) {
+        bool allowed = false;
+        for (uint i = 0; i < delegates.length; i++) {
+            if (delegates[i] == _to) {
+                allowed = true;
+            }
+        }
+        require(allowed, "Delegate is not registered");
+        _;
+    }
 
     mapping(uint256 => Proposal) public proposals;
     mapping(address => address) public delegations;
     mapping(address => uint256) public delegationCount;
+
+    address[] public delegates;
 
     event SubmittedMilestone(uint256 indexed id, string indexed ipfshash);
     event ProposalCreated(uint256 indexed id,address indexed proposer,string indexed _description);
@@ -51,14 +81,15 @@ contract River is Ownable{
     {
 
     }
-    function createProposal(string memory _description, string memory coverimage) external{
-        uint256 id = proposalCount++;
+    function createProposal(string memory _description, string memory coverimage,uint256 amountRequested) external{
+        uint256 id = ++proposalCount;
         Proposal storage proposal = proposals[id];
             proposal.proposer = msg.sender;
             proposal.description = _description;
             proposal.yesVotes = 0;
             proposal.noVotes = 0;
             proposal.status = ProposalStatus.Created;
+            proposal.amountRequested = amountRequested;
             proposal.currentMilestone = 0;
             proposal.totalAmountGranted = 0;
             proposal.lastVoteCheck = block.timestamp;
@@ -68,17 +99,15 @@ contract River is Ownable{
      
     
 
-    function delegate(address _to) external
+    function delegate(address _to) external validDelegate(_to)
     {
     require(_to != msg.sender, "Cannot delegate to self");
     require(delegations[msg.sender] != _to, "you have already delegated to this address");
-
     address current = _to;
     while (delegations[current] != address(0)) {
     require(delegations[current] != msg.sender, "Found a loop in delegation");
     current = delegations[current];
     }
-
     if (delegations[msg.sender] != address(0)) {
     delegationCount[delegations[msg.sender]]--;
     }
@@ -88,11 +117,24 @@ contract River is Ownable{
 
     emit Delegated(msg.sender, _to);
     }
+     /**
+        * @dev This function allows a user to vote on a proposal. 
+        * The voting is weighted by the number of delegates from the voter's address.
+        * If the voter has already voted, it requires that their last vote be at least one week old before they can vote again.
+        * It checks if the proposal id exists and if the voting period hasn't ended yet. 
+        * The function then adds or subtracts from the yesVotes or noVotes based on whether _inFavor is true or false, respectively.
+        * @param id The ID of the proposal to vote on.
+        * @param _inFavor True if the voter supports the proposal, False otherwise.
+    */ 
 
     function vote(uint256 id, bool _inFavor) external {
         require(id <= proposalCount && id > 0,"Invalid proposal Id");
         Proposal storage proposal = proposals[id];
+        require(msg.sender != proposal[id].proposer,"You cant vote on your own proposal");
         require(proposal.status != ProposalStatus.Completed, "Voting has ended");
+        if(isDelegating(msg.sender) != address(0)) {
+            undelegate();
+        }
         address voter = msg.sender;
         uint256 weight = 1+ delegationCount[voter];
         if(proposal.votes[voter].hasVoted){
@@ -176,7 +218,7 @@ contract River is Ownable{
 
 
     }
-    function undelegate() external {
+    function undelegate() public {
     require(delegations[msg.sender] != address(0), "Not currently delegating");
     address delegatee = delegations[msg.sender];
     delegationCount[delegatee]--;
@@ -186,6 +228,18 @@ contract River is Ownable{
 
     function finalizeProposal(uint256 id) public {
     updatestatus(id);
+    }
+    function grant() external {
+        require(msg.sender == L1_CROSS_DOMAIN_MESSENGER_PROXY, "Unauthorized");
+        for (uint256 i = 1; i <= proposalCount; i++) {
+            Proposal storage proposal = proposals[i];
+            if ((proposal.status == ProposalStatus.Milestoned || proposal.status == ProposalStatus.Completed)) {
+                proposal.totalAmountGranted += proposal.amountRequested / 5;
+            }
+            if (proposal.totalAmountGranted >= proposal.amountRequested) {
+                proposal.status = ProposalStatus.Settled;
+            }
+        }
     }
 
 
@@ -200,6 +254,40 @@ contract River is Ownable{
 
     function isDelegating(address _user) public view returns (address) {
     return delegations[_user];
-}
+    }
+function isDelegating(address _user) public view returns (address) {
+        return delegations[_user];
+    }
+    function setDelegates(address[] memory _delegates) public onlyOwner {
+        delegates = _delegates;
+    }
+    function isDelegating(address _user) public view returns (address) {
+        return delegations[_user];
+    }
+
+    function setDelegates(address[] memory _delegates) public onlyOwner {
+        delegates = _delegates;
+    }
+
+    function getProposals() public view returns (ProposalView[] memory) {
+        ProposalView[] memory _proposals = new ProposalView[](proposalCount);
+        for (uint256 i = 0; i < proposalCount; i++) {
+            Proposal storage proposal = proposals[i + 1];
+            _proposals[i] = ProposalView(
+                proposal.proposer,
+                proposal.id,
+                proposal.description,
+                proposal.amountRequested,
+                proposal.yesVotes,
+                proposal.noVotes,
+                proposal.status,
+                proposal.currentMilestone,
+                proposal.totalAmountGranted,
+                proposal.coverImage,
+                proposal.lastVoteCheck
+            );
+        }
+        return _proposals;
+    }
 
 }
