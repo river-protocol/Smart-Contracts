@@ -168,11 +168,9 @@ contract River is Ownable{
             
             proposal.status = ProposalStatus.Milestoned;
             proposal.currentMilestone++;
-            //code to start stream
         }
         else if (proposal.currentMilestone == 5) {
             proposal.status = ProposalStatus.Completed;
-            //code to end stream
         }
         emit SubmittedMilestone(id,ipfshash);
 
