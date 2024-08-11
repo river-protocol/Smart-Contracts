@@ -130,7 +130,7 @@ contract River is Ownable{
     function vote(uint256 id, bool _inFavor) external {
         require(id <= proposalCount && id > 0,"Invalid proposal Id");
         Proposal storage proposal = proposals[id];
-        require(msg.sender != proposal[id].proposer,"You cant vote on your own proposal");
+        require(msg.sender != proposal.proposer,"You cant vote on your own proposal");
         require(proposal.status != ProposalStatus.Completed, "Voting has ended");
         if(isDelegating(msg.sender) != address(0)) {
             undelegate();
@@ -233,6 +233,7 @@ contract River is Ownable{
         require(msg.sender == L1_CROSS_DOMAIN_MESSENGER_PROXY, "Unauthorized");
         for (uint256 i = 1; i <= proposalCount; i++) {
             Proposal storage proposal = proposals[i];
+            updatestatus(i);
             if ((proposal.status == ProposalStatus.Milestoned || proposal.status == ProposalStatus.Completed)) {
                 proposal.totalAmountGranted += proposal.amountRequested / 5;
             }
@@ -240,6 +241,27 @@ contract River is Ownable{
                 proposal.status = ProposalStatus.Settled;
             }
         }
+    }
+    function withdraw(uint256 id) public {
+        Proposal storage proposal = proposals[id];
+        require(
+            proposal.status == ProposalStatus.Milestoned,
+            "Proposal not completed"
+        );
+        require(
+            proposal.proposer == msg.sender,
+            "Only proposer can withdraw"
+        );
+        payable(msg.sender).transfer(proposal.totalAmountGranted);
+    }
+
+    function allocate(uint256 id) public payable {
+        Proposal storage proposal = proposals[id];
+        require(
+            proposal.status != ProposalStatus.Settled || proposal.status != ProposalStatus.Revoked,
+            "Not valid"
+        );
+        require(msg.value >= proposal.amountRequested, "Insufficient funds");
     }
 
 
@@ -252,15 +274,6 @@ contract River is Ownable{
     return proposals[id].status;
     }
 
-    function isDelegating(address _user) public view returns (address) {
-    return delegations[_user];
-    }
-function isDelegating(address _user) public view returns (address) {
-        return delegations[_user];
-    }
-    function setDelegates(address[] memory _delegates) public onlyOwner {
-        delegates = _delegates;
-    }
     function isDelegating(address _user) public view returns (address) {
         return delegations[_user];
     }
