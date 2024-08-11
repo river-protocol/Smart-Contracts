@@ -139,6 +139,7 @@ contract River is Ownable{
 
             else if (proposal.status == ProposalStatus.Approved || proposal.status == ProposalStatus.Milestoned)
             {
+            
                 if(yesPercentage > FUNDING_THRESHOLD)
                 {
                 proposal.status = ProposalStatus.Milestoned;
@@ -161,9 +162,12 @@ contract River is Ownable{
         require(msg.sender == proposal.proposer, "only proposer can submit");
         require(proposal.status == ProposalStatus.Approved || proposal.status == ProposalStatus.Milestoned,"Proposal not in correct status");
         require(proposal.currentMilestone < 5, "All milestones completed");
-        proposal.currentMilestone++;
+        require(msg.sender == isDelegating(proposal.proposer), "delegate before submitting");
+        
         if (proposal.status == ProposalStatus.Approved) {
+            
             proposal.status = ProposalStatus.Milestoned;
+            proposal.currentMilestone++;
             //code to start stream
         }
         else if (proposal.currentMilestone == 5) {
@@ -195,5 +199,9 @@ contract River is Ownable{
     function getProposalStatus(uint256 id) public view returns (ProposalStatus) {
     return proposals[id].status;
     }
+
+    function isDelegating(address _user) public view returns (address) {
+    return delegations[_user];
+}
 
 }
